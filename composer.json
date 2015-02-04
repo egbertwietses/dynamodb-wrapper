@@ -1,0 +1,21 @@
+{
+    "name": "egbertwietses/dynamodb-wrapper",
+    "description": "",
+    "keywords": ["aws", "cloudsearch", "amazon"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Egbert Wietses",
+            "email": "egbert@pionect.nl"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0",
+        "aws/aws-sdk-php": "2.*"
+    },
+    "autoload": {
+        "psr-0" : {
+            "EgbertWietses\\DynamoDbWrapper" : "src"
+        }
+    }
+}
