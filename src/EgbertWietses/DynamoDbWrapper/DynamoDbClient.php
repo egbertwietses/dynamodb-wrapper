@@ -21,6 +21,27 @@ class DynamoDbClient {
         ]);
     }
 
+    /**
+     * @param $tableName
+     * @param $fields
+     * @throws \Exception
+     */
+    public function putItem($tableName, $fields)
+    {
+        try
+        {
+            $response = $this->client->putItem([
+                "TableName"              => $tableName,
+                "Item"                   => $fields,
+                "ReturnConsumedCapacity" => "TOTAL"
+            ]);
+        }
+        catch (\Exception $ex)
+        {
+            throw $ex;
+        }
+    }
+
     public function emptyTable($table)
     {
         // Get table info
