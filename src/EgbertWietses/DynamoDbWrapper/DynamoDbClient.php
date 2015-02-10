@@ -1,11 +1,9 @@
 <?php namespace EgbertWietses\DynamoDbWrapper;
 
-use Aws\DynamoDb\DynamoDbClient;
-
 /**
- * Class DynamoDbClientWrapper
+ * Class DynamoDbClient
  */
-class DynamoDbClientWrapper {
+class DynamoDbClient {
 
     private $client;
 
@@ -16,7 +14,7 @@ class DynamoDbClientWrapper {
      */
     public function __construct($region, $key, $secret)
     {
-        $this->client = DynamoDbClient::factory([
+        $this->client = \Aws\DynamoDb\DynamoDbClient::factory([
             'region' => $region,
             'key'    => $key,
             'secret' => $secret
