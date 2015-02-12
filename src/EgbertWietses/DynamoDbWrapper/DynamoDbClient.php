@@ -23,6 +23,70 @@ class DynamoDbClient {
 
     /**
      * @param $tableName
+     * @param $keyconditions
+     * @return Aws\Common\Iterator\AwsResourceIterator AwsResourceIterator
+     */
+    public function getItem($tableName,$keyconditions){
+        
+        $iterator = $this->client->getIterator('Query', array(
+            'TableName'     => $tableName,
+            'KeyConditions' => $keyconditions
+        ));
+        
+        // Each item will contain the attributes we added
+        foreach ($iterator as $dbitem) {
+            $item = $this->extractMap($dbitem);
+            return $item;
+        }
+        
+        return false;
+    }
+    
+    private function extractMap(array $map){
+        $obj = new \stdClass();
+        foreach($map as $key => $value){
+            $obj->$key = $this->extractValue($value);
+        }
+        return $obj;
+    }
+    
+    private function extractValue(array $valuedef){
+        $value = reset($valuedef);
+        $type = key($valuedef);
+        switch($type){
+            case 'N':
+                return (float) $value;
+            case 'S':
+                return $value;
+            case 'NULL':
+                return null;
+            case 'BOOL':
+                return $value=='true';
+            case 'M':
+                return $this->extractMap($value);
+            case 'SS':
+                $stringset = array();
+                foreach($value as $key => $listvalue){
+                    $stringset[$key] = $listvalue;
+                }
+                return $stringset;
+            case 'NS':
+                $numberset = array();
+                foreach($value as $key => $listvalue){
+                    $numberset[$key] = (float) $value;
+                }
+                return $numberset;
+            case 'L':
+                $list = array();
+                foreach($value as $key => $listvalue){
+                    $list[$key] = $this->extractValue($listvalue);
+                }
+                return $list;
+        }
+    }
+    
+    /**
+     * @param $tableName
      * @param $fields
      * @throws \Exception
      */
