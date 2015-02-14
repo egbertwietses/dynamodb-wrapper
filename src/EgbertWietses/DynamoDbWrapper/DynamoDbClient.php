@@ -28,10 +28,10 @@ class DynamoDbClient {
      */
     public function getItem($tableName,$keyconditions){
         
-        $iterator = $this->client->getIterator('Query', array(
+        $iterator = $this->client->getIterator('Query',[
             'TableName'     => $tableName,
             'KeyConditions' => $keyconditions
-        ));
+        ]);
         
         // Each item will contain the attributes we added
         foreach ($iterator as $dbitem) {
@@ -98,6 +98,43 @@ class DynamoDbClient {
                 "TableName"              => $tableName,
                 "Item"                   => $fields,
                 "ReturnConsumedCapacity" => "TOTAL"
+            ]);
+        }
+        catch (\Exception $ex)
+        {
+            throw $ex;
+        }
+    }
+    
+    /**
+     * 
+     * @param string $tableName
+     * @param array $keys key.value paired primarykeys
+     * @return \Guzzle\Service\Resource\Model
+     * @throws \Exception
+     */
+    public function deleteItem($tableName,$keys){
+        try
+        {
+            $awskey = array();
+            foreach($keys as $key => $value){
+                switch(gettype($value)){
+                    case 'integer':
+                    case 'float':
+                        $type = 'N';
+                        break;
+                    case 'string':
+                        $type = 'S';
+                        break;
+                }
+                $awskey[$key] = array(
+                    $type => $value
+                );
+            }
+            
+            return $this->client->deleteItem([
+                'TableName' => $tableName,
+                'Key' => $awskey
             ]);
         }
         catch (\Exception $ex)
