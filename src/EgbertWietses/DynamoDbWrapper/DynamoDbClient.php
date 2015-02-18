@@ -24,7 +24,7 @@ class DynamoDbClient {
     /**
      * @param $tableName
      * @param $keyconditions
-     * @return Aws\Common\Iterator\AwsResourceIterator AwsResourceIterator
+     * @return \Aws\Common\Iterator\AwsResourceIterator AwsResourceIterator
      */
     public function getItem($tableName,$keyconditions){
         
@@ -65,19 +65,19 @@ class DynamoDbClient {
             case 'M':
                 return $this->extractMap($value);
             case 'SS':
-                $stringset = array();
+                $stringset = [];
                 foreach($value as $key => $listvalue){
                     $stringset[$key] = $listvalue;
                 }
                 return $stringset;
             case 'NS':
-                $numberset = array();
+                $numberset = [];
                 foreach($value as $key => $listvalue){
                     $numberset[$key] = (float) $value;
                 }
                 return $numberset;
             case 'L':
-                $list = array();
+                $list = [];
                 foreach($value as $key => $listvalue){
                     $list[$key] = $this->extractValue($listvalue);
                 }
@@ -87,16 +87,16 @@ class DynamoDbClient {
     
     /**
      * @param $tableName
-     * @param $fields
+     * @param DynamoDbItem $item
      * @throws \Exception
      */
-    public function putItem($tableName, $fields)
+    public function putItem($tableName, DynamoDbItem $item)
     {
         try
         {
             $response = $this->client->putItem([
                 "TableName"              => $tableName,
-                "Item"                   => $fields,
+                "Item"                   => $item->getPutItemArray(),
                 "ReturnConsumedCapacity" => "TOTAL"
             ]);
         }
@@ -116,7 +116,7 @@ class DynamoDbClient {
     public function deleteItem($tableName,$keys){
         try
         {
-            $awskey = array();
+            $awskey = [];
             foreach($keys as $key => $value){
                 switch(gettype($value)){
                     case 'integer':
@@ -127,9 +127,9 @@ class DynamoDbClient {
                         $type = 'S';
                         break;
                 }
-                $awskey[$key] = array(
+                $awskey[$key] = [
                     $type => $value
-                );
+                ];
             }
             
             return $this->client->deleteItem([
