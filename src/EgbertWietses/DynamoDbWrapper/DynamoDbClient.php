@@ -52,6 +52,43 @@ class DynamoDbClient {
         return false;
     }
     
+    public function batchGetItem($tableName,$key,$ids){
+        $keys = [];
+        foreach($ids as $id){
+            switch(gettype($id)){
+                case 'integer':
+                case 'float':
+                    $type = 'N';
+                    break;
+                case 'string':
+                    $type = 'S';
+                    break;
+            }
+                
+            $keys[] = [
+                $key => [
+                    $type => $id
+                ]
+            ];
+        }
+        
+        $result = $this->client->batchGetItem(array(
+            'RequestItems' => array(
+                $tableName => array(
+                    'Keys'           => $keys,
+                    'ConsistentRead' => true
+                )
+            )
+        ));
+        
+        $response = $result->getPath("Responses/{$tableName}");
+        $items = [];
+        foreach ($response as $dbitem) {
+            $items[] = $this->extractMap($dbitem);
+        }
+        return $items;
+    }
+    
     private function extractMap(array $map){
         $obj = new \stdClass();
         foreach($map as $key => $value){
