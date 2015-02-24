@@ -58,6 +58,7 @@ class DynamoDbClient {
             switch(gettype($id)){
                 case 'integer':
                 case 'float':
+                case 'double':
                     $type = 'N';
                     break;
                 case 'string':
