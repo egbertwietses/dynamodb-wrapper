@@ -26,12 +26,22 @@ class DynamoDbClient {
      * @param $keyconditions
      * @return \Aws\Common\Iterator\AwsResourceIterator AwsResourceIterator
      */
-    public function getItem($tableName,$keyconditions){
+    public function getItem($tableName,$keyconditions,$index=null){
         
-        $iterator = $this->client->getIterator('Query',[
-            'TableName'     => $tableName,
-            'KeyConditions' => $keyconditions
-        ]);
+        try
+        {
+            $query = [
+                'TableName'     => $tableName,
+                'KeyConditions' => $keyconditions
+            ];
+            if($index){
+                $query['IndexName'] = $index;
+            }
+            $iterator = $this->client->getIterator('Query',$query);
+        }
+        catch(\Exception $e){
+            throw $e;
+        }
         
         // Each item will contain the attributes we added
         foreach ($iterator as $dbitem) {
@@ -40,6 +50,44 @@ class DynamoDbClient {
         }
         
         return false;
+    }
+    
+    public function batchGetItem($tableName,$key,$ids){
+        $keys = [];
+        foreach($ids as $id){
+            switch(gettype($id)){
+                case 'integer':
+                case 'float':
+                case 'double':
+                    $type = 'N';
+                    break;
+                case 'string':
+                    $type = 'S';
+                    break;
+            }
+                
+            $keys[] = [
+                $key => [
+                    $type => $id
+                ]
+            ];
+        }
+        
+        $result = $this->client->batchGetItem(array(
+            'RequestItems' => array(
+                $tableName => array(
+                    'Keys'           => $keys,
+                    'ConsistentRead' => true
+                )
+            )
+        ));
+        
+        $response = $result->getPath("Responses/{$tableName}");
+        $items = [];
+        foreach ($response as $dbitem) {
+            $items[] = $this->extractMap($dbitem);
+        }
+        return $items;
     }
     
     private function extractMap(array $map){
