@@ -70,6 +70,14 @@ class DynamoDbItem {
                         break;
                     }
 
+                    if($value === '')
+                    {
+                        $type = 'NULL';
+                        $value = true;
+
+                        break;
+                    }
+
                     $type = 'S';
 
                     break;
