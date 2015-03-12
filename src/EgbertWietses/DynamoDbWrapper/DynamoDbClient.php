@@ -73,14 +73,14 @@ class DynamoDbClient {
             ];
         }
         
-        $result = $this->client->batchGetItem(array(
-            'RequestItems' => array(
-                $tableName => array(
+        $result = $this->client->batchGetItem([
+            'RequestItems' => [
+                $tableName => [
                     'Keys'           => $keys,
                     'ConsistentRead' => true
-                )
-            )
-        ));
+                ]
+            ]
+        ]);
         
         $response = $result->getPath("Responses/{$tableName}");
         $items = [];
@@ -155,34 +155,17 @@ class DynamoDbClient {
     }
     
     /**
-     * 
-     * @param string $tableName
-     * @param array $keys key.value paired primarykeys
+     * @param $tableName
+     * @param DynamoDbItem $item
      * @return \Guzzle\Service\Resource\Model
      * @throws \Exception
      */
-    public function deleteItem($tableName,$keys){
+    public function deleteItem($tableName, DynamoDbItem $item){
         try
         {
-            $awskey = [];
-            foreach($keys as $key => $value){
-                switch(gettype($value)){
-                    case 'integer':
-                    case 'float':
-                        $type = 'N';
-                        break;
-                    case 'string':
-                        $type = 'S';
-                        break;
-                }
-                $awskey[$key] = [
-                    $type => $value
-                ];
-            }
-            
             return $this->client->deleteItem([
                 'TableName' => $tableName,
-                'Key' => $awskey
+                'Key' => $item->getDeleteItemArray()
             ]);
         }
         catch (\Exception $ex)
