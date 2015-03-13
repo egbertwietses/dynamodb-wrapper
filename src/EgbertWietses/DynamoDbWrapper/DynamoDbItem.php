@@ -63,10 +63,16 @@ class DynamoDbItem {
 
     /**
      * @return array
+     * @throws \Exception
      */
     public function getDeleteItemArray()
     {
         $deleteArray = [];
+
+        if(empty($this->keys))
+        {
+            throw new \Exception('Keys must be set when trying to delete an item.');
+        }
 
         foreach($this->keys as $key)
         {
