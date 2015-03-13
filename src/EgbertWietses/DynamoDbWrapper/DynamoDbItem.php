@@ -13,7 +13,7 @@ class DynamoDbItem {
     /**
      * @var array
      */
-    private $keys;
+    private $keys = [];
 
     /**
      * @param array $keys
