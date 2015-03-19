@@ -160,7 +160,7 @@ class DynamoDbItem {
             }
 
             //We don't want to add strange values to Dynamo with danger of getting an exception.
-            if($type === false || is_null($type))
+            if($type === false || is_null($type) || $key === '')
             {
                 continue;
             }
