@@ -22,11 +22,13 @@ class DynamoDbClient {
     }
 
     /**
-     * @param $tableName
-     * @param $keyconditions
-     * @return \Aws\Common\Iterator\AwsResourceIterator AwsResourceIterator
+     * @param      $tableName
+     * @param      $keyconditions
+     * @param null $index
+     * @return bool|\stdClass
+     * @throws \Exception
      */
-    public function getItem($tableName,$keyconditions,$index=null){
+    public function query($tableName,$keyconditions,$index=null){
         
         try
         {
