@@ -21,6 +21,26 @@ class DynamoDbClient {
         ]);
     }
 
+    /**
+     * @param $tableName
+     * @param $keys
+     * @return \stdClass
+     */
+    public function getItem($tableName, $keys)
+    {
+        $result = $this->client->getItem([
+            'ConsistentRead' => true,
+            'TableName'      => $tableName,
+            'Key'            => $keys
+        ]);
+
+        if ( ! isset($result['Item'])) {
+            return false;
+        }
+
+        return $this->extractMap($result['Item']);
+    }
+
     public function getItemByIndexValues($tableName, $indexName, array $keys)
     {
         $attributeValues = [];
