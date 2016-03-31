@@ -23,10 +23,75 @@ class DynamoDbClient {
 
     /**
      * @param $tableName
-     * @param $keyconditions
-     * @return \Aws\Common\Iterator\AwsResourceIterator AwsResourceIterator
+     * @param $keys
+     * @return \stdClass
      */
-    public function getItem($tableName,$keyconditions,$index=null){
+    public function getItem($tableName, $keys)
+    {
+        $result = $this->client->getItem([
+            'ConsistentRead' => true,
+            'TableName'      => $tableName,
+            'Key'            => $keys
+        ]);
+
+        if ( ! isset($result['Item'])) {
+            return false;
+        }
+
+        return $this->extractMap($result['Item']);
+    }
+
+    public function getItemByIndexValues($tableName, $indexName, array $keys)
+    {
+        $attributeValues = [];
+        $attributeNames  = [];
+        $expression      = '';
+
+        foreach ($keys as $fieldName => $value) {
+            if (ctype_digit((string) $value)) {
+                $type = 'N';
+            } else {
+                $type = 'S';
+            }
+
+            if ( ! empty($expression)) {
+                $expression .= ' and ';
+            }
+
+            $attributePlaceholder = '#n_' . addslashes($fieldName);
+            $parameterPlaceholder = ':v_' . addslashes($fieldName);
+            $expression .= $attributePlaceholder . ' = ' . $parameterPlaceholder;
+
+            $attributeNames[$attributePlaceholder]  = addslashes($fieldName);
+            $attributeValues[$parameterPlaceholder] = [$type => $value];
+        }
+
+        $query    = [
+            'TableName'                 => $tableName,
+            'IndexName'                 => $indexName,
+            'KeyConditionExpression'    => $expression,
+            'ExpressionAttributeNames'  => $attributeNames,
+            'ExpressionAttributeValues' => $attributeValues
+        ];
+
+        $iterator = $this->client->getIterator('Query',$query);
+
+        foreach ($iterator as $item) {
+            $item = $this->extractMap($item);
+            return $item;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param      $tableName
+     * @param      $keyconditions
+     * @param null $index
+     * @return bool|\stdClass
+     * @throws \Exception
+     */
+    public function query($tableName,$keyconditions,$index=null){
         
         try
         {
