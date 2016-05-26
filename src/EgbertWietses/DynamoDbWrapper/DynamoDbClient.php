@@ -15,9 +15,10 @@ class DynamoDbClient {
     public function __construct($region, $key, $secret)
     {
         $this->client = \Aws\DynamoDb\DynamoDbClient::factory([
-            'region' => $region,
-            'key'    => $key,
-            'secret' => $secret
+            'region'  => $region,
+            'key'     => $key,
+            'secret'  => $secret,
+            'version' => '2012-08-10'
         ]);
     }
 
