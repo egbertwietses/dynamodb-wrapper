@@ -15,9 +15,12 @@ class DynamoDbClient {
     public function __construct($region, $key, $secret)
     {
         $this->client = \Aws\DynamoDb\DynamoDbClient::factory([
-            'region' => $region,
-            'key'    => $key,
-            'secret' => $secret
+            'region'      => $region,
+            'credentials' => [
+                'key'    => $key,
+                'secret' => $secret
+            ],
+            'version'     => '2012-08-10'
         ]);
     }
 
@@ -28,6 +31,8 @@ class DynamoDbClient {
      */
     public function getItem($tableName, $keys)
     {
+        $this->filterNonStringValues($keys);
+
         $result = $this->client->getItem([
             'ConsistentRead' => true,
             'TableName'      => $tableName,
@@ -63,7 +68,7 @@ class DynamoDbClient {
             $expression .= $attributePlaceholder . ' = ' . $parameterPlaceholder;
 
             $attributeNames[$attributePlaceholder]  = addslashes($fieldName);
-            $attributeValues[$parameterPlaceholder] = [$type => $value];
+            $attributeValues[$parameterPlaceholder] = [$type => (string) $value];
         }
 
         $query    = [
@@ -95,6 +100,7 @@ class DynamoDbClient {
         
         try
         {
+            $keyconditions = $this->filterNonStringValues($keyconditions);
             $query = [
                 'TableName'     => $tableName,
                 'KeyConditions' => $keyconditions
@@ -133,7 +139,7 @@ class DynamoDbClient {
                 
             $keys[] = [
                 $key => [
-                    $type => $id
+                    $type => (string) $id
                 ]
             ];
         }
@@ -155,20 +161,20 @@ class DynamoDbClient {
         return $items;
     }
     
-    private function extractMap(array $map){
+    private function extractMap(array $map, $numbersAsString = false){
         $obj = new \stdClass();
         foreach($map as $key => $value){
-            $obj->$key = $this->extractValue($value);
+            $obj->$key = $this->extractValue($value, $numbersAsString);
         }
         return $obj;
     }
     
-    private function extractValue(array $valuedef){
+    private function extractValue(array $valuedef, $numbersAsString = false){
         $value = reset($valuedef);
         $type = key($valuedef);
         switch($type){
             case 'N':
-                return (float) $value;
+                return $numbersAsString ? $value : (float) $value;
             case 'S':
                 return $value;
             case 'NULL':
@@ -186,7 +192,7 @@ class DynamoDbClient {
             case 'NS':
                 $numberset = [];
                 foreach($value as $key => $listvalue){
-                    $numberset[$key] = (float) $value;
+                    $numberset[$key] = $numbersAsString ? $value : (float) $value;
                 }
                 return $numberset;
             case 'L':
@@ -220,9 +226,9 @@ class DynamoDbClient {
     }
     
     /**
-     * @param $tableName
+     * @param              $tableName
      * @param DynamoDbItem $item
-     * @return \Guzzle\Service\Resource\Model
+     * @return \Aws\Result
      * @throws \Exception
      */
     public function deleteItem($tableName, DynamoDbItem $item){
@@ -276,5 +282,20 @@ class DynamoDbClient {
                 'Key'       => $key
             ]);
         }
+    }
+
+    /**
+     * @param $keyconditions
+     * @return mixed
+     */
+    protected function filterNonStringValues($keyconditions)
+    {
+        array_walk_recursive($keyconditions, function (&$value) {
+            if (is_int($value)) {
+                $value = (string) $value;
+            }
+        });
+
+        return $keyconditions;
     }
 }
