@@ -31,7 +31,7 @@ class DynamoDbClient {
      */
     public function getItem($tableName, $keys)
     {
-        $this->filterNonStringValues($keys);
+        $keys = $this->filterNonStringValues($keys);
 
         $result = $this->client->getItem([
             'ConsistentRead' => true,
