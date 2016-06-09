@@ -291,7 +291,7 @@ class DynamoDbClient {
     protected function filterNonStringValues($keyconditions)
     {
         array_walk_recursive($keyconditions, function (&$value) {
-            if (is_int($value)) {
+            if (is_numeric($value)) {
                 $value = (string) $value;
             }
         });
