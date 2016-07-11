@@ -133,6 +133,10 @@ class DynamoDbClient {
                     $type = 'N';
                     break;
                 case 'string':
+                    if(ctype_digit($id)) {
+                        $type = 'N';
+                        break;
+                    }
                     $type = 'S';
                     break;
             }
