@@ -219,7 +219,7 @@ class DynamoDbClient {
         {
             $response = $this->client->putItem([
                 "TableName"              => $tableName,
-                "Item"                   => $item->getPutItemArray(),
+                "Item"                   => $this->filterNonStringValues($item->getPutItemArray()),
                 "ReturnConsumedCapacity" => "TOTAL"
             ]);
         }
