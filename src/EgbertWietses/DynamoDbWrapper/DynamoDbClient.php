@@ -3,10 +3,11 @@
 /**
  * Class DynamoDbClient
  */
-class DynamoDbClient {
-
+class DynamoDbClient
+{
+    
     private $client;
-
+    
     /**
      * @param $region
      * @param $key
@@ -23,7 +24,7 @@ class DynamoDbClient {
             'version'     => '2012-08-10'
         ]);
     }
-
+    
     /**
      * @param $tableName
      * @param $keys
@@ -32,63 +33,64 @@ class DynamoDbClient {
     public function getItem($tableName, $keys)
     {
         $keys = $this->filterNonStringValues($keys);
-
+        
         $result = $this->client->getItem([
             'ConsistentRead' => true,
             'TableName'      => $tableName,
             'Key'            => $keys
         ]);
-
+        
         if ( ! isset($result['Item'])) {
             return false;
         }
-
+        
         return $this->extractMap($result['Item']);
     }
-
+    
     public function getItemByIndexValues($tableName, $indexName, array $keys)
     {
         $attributeValues = [];
         $attributeNames  = [];
         $expression      = '';
-
+        
         foreach ($keys as $fieldName => $value) {
             if (ctype_digit((string) $value)) {
                 $type = 'N';
             } else {
                 $type = 'S';
             }
-
+            
             if ( ! empty($expression)) {
                 $expression .= ' and ';
             }
-
+            
             $attributePlaceholder = '#n_' . addslashes($fieldName);
             $parameterPlaceholder = ':v_' . addslashes($fieldName);
             $expression .= $attributePlaceholder . ' = ' . $parameterPlaceholder;
-
+            
             $attributeNames[$attributePlaceholder]  = addslashes($fieldName);
             $attributeValues[$parameterPlaceholder] = [$type => (string) $value];
         }
-
-        $query    = [
+        
+        $query = [
             'TableName'                 => $tableName,
             'IndexName'                 => $indexName,
             'KeyConditionExpression'    => $expression,
             'ExpressionAttributeNames'  => $attributeNames,
             'ExpressionAttributeValues' => $attributeValues
         ];
-
-        $iterator = $this->client->getIterator('Query',$query);
-
+        
+        $iterator = $this->client->getIterator('Query', $query);
+        
         foreach ($iterator as $item) {
             $item = $this->extractMap($item);
+            
             return $item;
         }
-
+        
         return false;
     }
-
+    
     /**
      * @param      $tableName
      * @param      $keyconditions
@@ -96,51 +98,52 @@ class DynamoDbClient {
      * @return bool|\stdClass
      * @throws \Exception
      */
-    public function query($tableName,$keyconditions,$index=null){
+    public function query($tableName, $keyconditions, $index = null)
+    {
         
-        try
-        {
+        try {
             $keyconditions = $this->filterNonStringValues($keyconditions);
-            $query = [
+            $query         = [
                 'TableName'     => $tableName,
                 'KeyConditions' => $keyconditions
             ];
-            if($index){
+            if ($index) {
                 $query['IndexName'] = $index;
             }
-            $iterator = $this->client->getIterator('Query',$query);
-        }
-        catch(\Exception $e){
+            $iterator = $this->client->getIterator('Query', $query);
+        } catch (\Exception $e) {
             throw $e;
         }
         
         // Each item will contain the attributes we added
         foreach ($iterator as $dbitem) {
             $item = $this->extractMap($dbitem);
+            
             return $item;
         }
         
         return false;
     }
     
-    public function batchGetItem($tableName,$key,$ids){
+    public function batchGetItem($tableName, $key, $ids)
+    {
         $keys = [];
-        foreach($ids as $id){
-            switch(gettype($id)){
+        foreach ($ids as $id) {
+            switch (gettype($id)) {
                 case 'integer':
                 case 'float':
                 case 'double':
                     $type = 'N';
                     break;
                 case 'string':
-                    if(ctype_digit($id)) {
+                    if (ctype_digit($id)) {
                         $type = 'N';
                         break;
                     }
                     $type = 'S';
                     break;
             }
-                
+            
             $keys[] = [
                 $key => [
                     $type => (string) $id
@@ -158,25 +161,29 @@ class DynamoDbClient {
         ]);
         
         $response = $result->getPath("Responses/{$tableName}");
-        $items = collect();
+        $items    = collect();
         foreach ($response as $dbitem) {
             $items->push($this->extractMap($dbitem));
         }
+        
         return $items;
     }
     
-    private function extractMap(array $map, $numbersAsString = false){
+    private function extractMap(array $map, $numbersAsString = false)
+    {
         $obj = new \stdClass();
-        foreach($map as $key => $value){
+        foreach ($map as $key => $value) {
             $obj->$key = $this->extractValue($value, $numbersAsString);
         }
+        
         return $obj;
     }
     
-    private function extractValue(array $valuedef, $numbersAsString = false){
+    private function extractValue(array $valuedef, $numbersAsString = false)
+    {
         $value = reset($valuedef);
-        $type = key($valuedef);
-        switch($type){
+        $type  = key($valuedef);
+        switch ($type) {
             case 'N':
                 return $numbersAsString ? $value : (float) $value;
             case 'S':
@@ -184,47 +191,47 @@ class DynamoDbClient {
             case 'NULL':
                 return null;
             case 'BOOL':
-                return $value=='true';
+                return $value == 'true';
             case 'M':
                 return $this->extractMap($value);
             case 'SS':
                 $stringset = [];
-                foreach($value as $key => $listvalue){
+                foreach ($value as $key => $listvalue) {
                     $stringset[$key] = $listvalue;
                 }
+                
                 return $stringset;
             case 'NS':
                 $numberset = [];
-                foreach($value as $key => $listvalue){
+                foreach ($value as $key => $listvalue) {
                     $numberset[$key] = $numbersAsString ? $value : (float) $value;
                 }
+                
                 return $numberset;
             case 'L':
                 $list = [];
-                foreach($value as $key => $listvalue){
+                foreach ($value as $key => $listvalue) {
                     $list[$key] = $this->extractValue($listvalue);
                 }
+                
                 return $list;
         }
     }
     
     /**
-     * @param $tableName
+     * @param              $tableName
      * @param DynamoDbItem $item
      * @throws \Exception
      */
     public function putItem($tableName, DynamoDbItem $item)
     {
-        try
-        {
+        try {
             $response = $this->client->putItem([
                 "TableName"              => $tableName,
                 "Item"                   => $this->filterNonStringValues($item->getPutItemArray()),
                 "ReturnConsumedCapacity" => "TOTAL"
             ]);
-        }
-        catch (\Exception $ex)
-        {
+        } catch (\Exception $ex) {
             throw $ex;
         }
     }
@@ -235,50 +242,42 @@ class DynamoDbClient {
      * @return \Aws\Result
      * @throws \Exception
      */
-    public function deleteItem($tableName, DynamoDbItem $item){
-        try
-        {
+    public function deleteItem($tableName, DynamoDbItem $item)
+    {
+        try {
             return $this->client->deleteItem([
                 'TableName' => $tableName,
-                'Key' => $this->filterNonStringValues($item->getDeleteItemArray())
+                'Key'       => $this->filterNonStringValues($item->getDeleteItemArray())
             ]);
-        }
-        catch (\Exception $ex)
-        {
+        } catch (\Exception $ex) {
             throw $ex;
         }
     }
-
+    
     public function emptyTable($table)
     {
         // Get table info
-        $result = $this->client->describeTable(['TableName' => $table]);
+        $result    = $this->client->describeTable(['TableName' => $table]);
         $keySchema = $result['Table']['KeySchema'];
-
-        foreach ($keySchema as $schema)
-        {
-            if($schema['KeyType'] === 'HASH')
-            {
+        
+        foreach ($keySchema as $schema) {
+            if ($schema['KeyType'] === 'HASH') {
                 $hashKeyName = $schema['AttributeName'];
-            }
-            else if($schema['KeyType'] === 'RANGE')
-            {
+            } else if ($schema['KeyType'] === 'RANGE') {
                 $rangeKeyName = $schema['AttributeName'];
             }
         }
         // Delete items in the table
         $scan = $this->client->getIterator('Scan', ['TableName' => $table]);
-        foreach ($scan as $item)
-        {
+        foreach ($scan as $item) {
             // set hash key
             $hashKeyType = array_key_exists('S', $item[$hashKeyName]) ? 'S' : 'N';
-            $key = [
+            $key         = [
                 $hashKeyName => [$hashKeyType => $item[$hashKeyName][$hashKeyType]],
             ];
             // set range key if defined
-            if(isset($rangeKeyName))
-            {
-                $rangeKeyType = array_key_exists('S', $item[$rangeKeyName]) ? 'S' : 'N';
+            if (isset($rangeKeyName)) {
+                $rangeKeyType       = array_key_exists('S', $item[$rangeKeyName]) ? 'S' : 'N';
                 $key[$rangeKeyName] = [$rangeKeyType => $item[$rangeKeyName][$rangeKeyType]];
             }
             $this->client->deleteItem([
@@ -288,9 +287,10 @@ class DynamoDbClient {
         }
     }
     
-    public function scanTable($table) {
+    public function scanTable($table)
+    {
         $values = collect();
-        $scan = $this->client->getIterator('Scan', ['TableName' => $table]);
+        $scan   = $this->client->getIterator('Scan', ['TableName' => $table]);
         
         foreach ($scan as $value) {
             $values->push($this->extractMap($value));
@@ -310,7 +310,7 @@ class DynamoDbClient {
                 $value = (string) $value;
             }
         });
-
+        
         return $keyconditions;
     }
     
