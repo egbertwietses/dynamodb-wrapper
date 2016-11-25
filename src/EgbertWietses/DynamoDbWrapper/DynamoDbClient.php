@@ -158,9 +158,9 @@ class DynamoDbClient {
         ]);
         
         $response = $result->getPath("Responses/{$tableName}");
-        $items = [];
+        $items = collect();
         foreach ($response as $dbitem) {
-            $items[] = $this->extractMap($dbitem);
+            $items->push($this->extractMap($dbitem));
         }
         return $items;
     }
