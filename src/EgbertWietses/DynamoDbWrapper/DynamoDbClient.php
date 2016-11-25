@@ -302,4 +302,12 @@ class DynamoDbClient {
 
         return $keyconditions;
     }
+    
+    /**
+     * @return static
+     */
+    public function getClient()
+    {
+        return $this->client;
+    }
 }
