@@ -240,7 +240,7 @@ class DynamoDbClient {
         {
             return $this->client->deleteItem([
                 'TableName' => $tableName,
-                'Key' => $item->getDeleteItemArray()
+                'Key' => $this->filterNonStringValues($item->getDeleteItemArray())
             ]);
         }
         catch (\Exception $ex)
