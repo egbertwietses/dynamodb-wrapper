@@ -287,7 +287,18 @@ class DynamoDbClient {
             ]);
         }
     }
-
+    
+    public function scanTable($table) {
+        $values = collect();
+        $scan = $this->client->getIterator('Scan', ['TableName' => $table]);
+        
+        foreach ($scan as $value) {
+            $values->push($this->extractMap($value));
+        }
+        
+        return $values;
+    }
+    
     /**
      * @param $keyconditions
      * @return mixed
