@@ -5,9 +5,9 @@
  */
 class DynamoDbClient
 {
-    
+
     private $client;
-    
+
     /**
      * @param $region
      * @param $key
@@ -24,7 +24,7 @@ class DynamoDbClient
             'version'     => '2012-08-10'
         ]);
     }
-    
+
     /**
      * @param $tableName
      * @param $keys
@@ -33,45 +33,45 @@ class DynamoDbClient
     public function getItem($tableName, $keys)
     {
         $keys = $this->filterNonStringValues($keys);
-        
+
         $result = $this->client->getItem([
             'ConsistentRead' => true,
             'TableName'      => $tableName,
             'Key'            => $keys
         ]);
-        
+
         if ( ! isset($result['Item'])) {
             return false;
         }
-        
+
         return $this->extractMap($result['Item']);
     }
-    
+
     public function getItemByIndexValues($tableName, $indexName, array $keys)
     {
         $attributeValues = [];
         $attributeNames  = [];
         $expression      = '';
-        
+
         foreach ($keys as $fieldName => $value) {
             if (ctype_digit((string) $value)) {
                 $type = 'N';
             } else {
                 $type = 'S';
             }
-            
+
             if ( ! empty($expression)) {
                 $expression .= ' and ';
             }
-            
+
             $attributePlaceholder = '#n_' . addslashes($fieldName);
             $parameterPlaceholder = ':v_' . addslashes($fieldName);
             $expression .= $attributePlaceholder . ' = ' . $parameterPlaceholder;
-            
+
             $attributeNames[$attributePlaceholder]  = addslashes($fieldName);
             $attributeValues[$parameterPlaceholder] = [$type => (string) $value];
         }
-        
+
         $query = [
             'TableName'                 => $tableName,
             'IndexName'                 => $indexName,
@@ -79,18 +79,18 @@ class DynamoDbClient
             'ExpressionAttributeNames'  => $attributeNames,
             'ExpressionAttributeValues' => $attributeValues
         ];
-        
+
         $iterator = $this->client->getIterator('Query', $query);
-        
+
         foreach ($iterator as $item) {
             $item = $this->extractMap($item);
-            
+
             return $item;
         }
-        
+
         return false;
     }
-    
+
     /**
      * @param      $tableName
      * @param      $keyconditions
@@ -100,7 +100,7 @@ class DynamoDbClient
      */
     public function query($tableName, $keyconditions, $index = null)
     {
-        
+
         try {
             $keyconditions = $this->filterNonStringValues($keyconditions);
             $query         = [
@@ -114,17 +114,17 @@ class DynamoDbClient
         } catch (\Exception $e) {
             throw $e;
         }
-        
+
         // Each item will contain the attributes we added
         foreach ($iterator as $dbitem) {
             $item = $this->extractMap($dbitem);
-            
+
             return $item;
         }
-        
+
         return false;
     }
-    
+
     public function batchGetItem($tableName, $key, $ids)
     {
         $keys = [];
@@ -143,14 +143,14 @@ class DynamoDbClient
                     $type = 'S';
                     break;
             }
-            
+
             $keys[] = [
                 $key => [
                     $type => (string) $id
                 ]
             ];
         }
-        
+
         $result = $this->client->batchGetItem([
             'RequestItems' => [
                 $tableName => [
@@ -159,26 +159,26 @@ class DynamoDbClient
                 ]
             ]
         ]);
-        
+
         $response = $result->getPath("Responses/{$tableName}");
         $items    = collect();
         foreach ($response as $dbitem) {
             $items->push($this->extractMap($dbitem));
         }
-        
+
         return $items;
     }
-    
+
     private function extractMap(array $map, $numbersAsString = false)
     {
         $obj = new \stdClass();
         foreach ($map as $key => $value) {
             $obj->$key = $this->extractValue($value, $numbersAsString);
         }
-        
+
         return $obj;
     }
-    
+
     private function extractValue(array $valuedef, $numbersAsString = false)
     {
         $value = reset($valuedef);
@@ -199,25 +199,25 @@ class DynamoDbClient
                 foreach ($value as $key => $listvalue) {
                     $stringset[$key] = $listvalue;
                 }
-                
+
                 return $stringset;
             case 'NS':
                 $numberset = [];
                 foreach ($value as $key => $listvalue) {
                     $numberset[$key] = $numbersAsString ? $value : (float) $value;
                 }
-                
+
                 return $numberset;
             case 'L':
                 $list = [];
                 foreach ($value as $key => $listvalue) {
                     $list[$key] = $this->extractValue($listvalue);
                 }
-                
+
                 return $list;
         }
     }
-    
+
     /**
      * @param              $tableName
      * @param DynamoDbItem $item
@@ -235,7 +235,33 @@ class DynamoDbClient
             throw $ex;
         }
     }
-    
+
+    /**
+     * @param $tableName
+     * @param $items
+     */
+    public function batchPutItems($tableName, $items)
+    {
+        $dynamoOperations = collect();
+        /** @var DynamoDbItem $item */
+        foreach ($items as $item) {
+            $dynamoOperations->push([
+                'PutRequest' => [
+                    "Item" => $this->filterNonStringValues($item->getPutItemArray()),
+                ]
+            ]);
+        }
+
+        // DynamoDB rejects the entire batch write operation if there are more than 25 requests in the batch.
+        foreach($dynamoOperations->chunk(25) as $operations) {
+            $this->client->batchWriteItem([
+                'RequestItems' => [
+                    $tableName => array_values($operations->toArray())
+                ]
+            ]);
+        }
+    }
+
     /**
      * @param              $tableName
      * @param DynamoDbItem $item
@@ -253,13 +279,41 @@ class DynamoDbClient
             throw $ex;
         }
     }
-    
+
+    /**
+     * @param $tableName
+     * @param $items
+     * @throws \Exception
+     */
+    public function batchDeleteItems($tableName, $items)
+    {
+        $dynamoOperations = collect();
+        /** @var DynamoDbItem $item */
+        foreach ($items as $item) {
+            $dynamoOperations->push([
+                'DeleteRequest' => [
+                    "Key" => $this->filterNonStringValues($item->getDeleteItemArray()),
+                ]
+            ]);
+        }
+
+        // DynamoDB rejects the entire batch write operation if there are more than 25 requests in the batch.
+        foreach ($dynamoOperations->chunk(25) as $operations) {
+            $this->client->batchWriteItem([
+                'RequestItems' => [
+                    $tableName => array_values($operations->toArray())
+                ]
+            ]);
+        }
+    }
+
+
     public function emptyTable($table)
     {
         // Get table info
         $result    = $this->client->describeTable(['TableName' => $table]);
         $keySchema = $result['Table']['KeySchema'];
-        
+
         foreach ($keySchema as $schema) {
             if ($schema['KeyType'] === 'HASH') {
                 $hashKeyName = $schema['AttributeName'];
@@ -286,19 +340,19 @@ class DynamoDbClient
             ]);
         }
     }
-    
+
     public function scanTable($table)
     {
         $values = collect();
         $scan   = $this->client->getIterator('Scan', ['TableName' => $table]);
-        
+
         foreach ($scan as $value) {
             $values->push($this->extractMap($value));
         }
-        
+
         return $values;
     }
-    
+
     /**
      * @param $keyconditions
      * @return mixed
@@ -310,10 +364,10 @@ class DynamoDbClient
                 $value = (string) $value;
             }
         });
-        
+
         return $keyconditions;
     }
-    
+
     /**
      * @return static
      */
@@ -321,4 +375,5 @@ class DynamoDbClient
     {
         return $this->client;
     }
+
 }
