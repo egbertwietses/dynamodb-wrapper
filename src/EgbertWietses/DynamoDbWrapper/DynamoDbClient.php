@@ -240,7 +240,7 @@ class DynamoDbClient
      * @param $tableName
      * @param $items
      */
-    public function batchPutItem($tableName, $items)
+    public function batchPutItems($tableName, $items)
     {
         $dynamoOperations = collect();
         /** @var DynamoDbItem $item */
